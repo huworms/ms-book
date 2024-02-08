@@ -1,0 +1,29 @@
+
+version: '2.1'
+
+services:
+  product:
+    image: huworms/product-service:latest
+    mem_limit: 512m
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+
+  recommendation:
+    image: huworms/recommendation-service:latest
+    mem_limit: 512m
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+
+  review:
+    image: huworms/review-service:latest
+    mem_limit: 512m
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+
+  product-composite:
+    image: huworms/product-composite-service:latest
+    mem_limit: 512m
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
