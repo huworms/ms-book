@@ -16,7 +16,7 @@ public class RecommendationEntity {
 	private Integer version;
 	
 	private int productId;
-	private int recommmendationId;
+	private int recommendationId;
 	private String author;
 	private int rating;
 	private String content;
@@ -26,7 +26,7 @@ public class RecommendationEntity {
 	public RecommendationEntity(int productId, int recommmendationId, String author, int rating, String content) {
 		super();
 		this.productId = productId;
-		this.recommmendationId = recommmendationId;
+		this.recommendationId = recommmendationId;
 		this.author = author;
 		this.rating = rating;
 		this.content = content;
@@ -56,12 +56,12 @@ public class RecommendationEntity {
 		this.productId = productId;
 	}
 
-	public int getRecommmendationId() {
-		return recommmendationId;
+	public int getRecommendationId() {
+		return recommendationId;
 	}
 
-	public void setRecommmendationId(int recommmendationId) {
-		this.recommmendationId = recommmendationId;
+	public void setRecommendationId(int recommmendationId) {
+		this.recommendationId = recommmendationId;
 	}
 
 	public String getAuthor() {

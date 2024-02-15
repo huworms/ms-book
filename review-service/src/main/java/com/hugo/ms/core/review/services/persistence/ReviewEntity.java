@@ -1,12 +1,14 @@
 package com.hugo.ms.core.review.services.persistence;
 
-import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.Version;
+
+
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 
 @Entity
 @Table(name="reviews", 

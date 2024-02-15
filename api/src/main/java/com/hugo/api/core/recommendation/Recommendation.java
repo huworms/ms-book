@@ -4,6 +4,7 @@ public class Recommendation {
 	
 	private int productId;
 	private int recommendationId;
+	
 	private String author;
 	private int rate;
 	private String content;
