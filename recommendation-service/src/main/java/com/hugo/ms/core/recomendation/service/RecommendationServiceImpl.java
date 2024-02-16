@@ -1,5 +1,6 @@
 package com.hugo.ms.core.recomendation.service;
 
+import static java.util.logging.Level.FINE;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -15,6 +16,9 @@ import com.hugo.ms.core.recomendation.persistence.RecommendationEntity;
 import com.hugo.ms.core.recomendation.persistence.RecommendationRepository;
 import com.hugo.util.ServiceUtil;
 import com.mongodb.DuplicateKeyException;
+
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 @RestController
 public class RecommendationServiceImpl implements RecommendationService{
@@ -37,44 +41,58 @@ public class RecommendationServiceImpl implements RecommendationService{
     }
     
     @Override
-	public Recommendation createRecommendation(Recommendation body) {
-		try {
-			LOG.debug("productID: "+body.getProductId()+", recommendationID: "+body.getRecommendationId());
-			RecommendationEntity entity=mapper.apiToEntity(body);
-			LOG.debug("Entity productID : "+entity.getProductId()+",Entity recommendationID: "+entity.getRecommendationId());
-			RecommendationEntity newEntity=repository.save(entity);
+	public Mono<Recommendation> createRecommendation(Recommendation body) {
+    	if (body.getProductId() < 1) {
+	      throw new InvalidInputException("Invalid productId: " + body.getProductId());
+	    }
+    	
+    	LOG.debug("productID: "+body.getProductId()+", recommendationID: "+body.getRecommendationId());
+		RecommendationEntity entity=mapper.apiToEntity(body);
+		LOG.debug("Entity productID : "+entity.getProductId()+",Entity recommendationID: "+entity.getRecommendationId());
+    	Mono<Recommendation> newEntity=repository.save(entity)
+    			.log(LOG.getName(), FINE)
+    			.onErrorMap(DuplicateKeyException.class,
+    					ex-> new InvalidInputException("Duplicate key, Product Id: " + 
+    								body.getProductId() + 
+    								", Recommendation Id:" + 
+    								body.getRecommendationId()))
+				.map(e->mapper.entityToApi(e));
+    	return newEntity;
 			
-			LOG.debug("createRecommendation: created a recommendation "
-					+ "entity: {}/{}",body.getProductId(),body.getRecommendationId());
-			return mapper.entityToApi(newEntity);
-		}catch(DuplicateKeyException dke) {
-			throw new InvalidInputException("Duplicate key, Product Id: " + body.getProductId() + ", Recommendation Id:" + body.getRecommendationId());
-		}	
 	}
     
     @Override
-    public List<Recommendation> getRecommendations(int productId) {
-    	LOG.info("id_product: "+productId);
+    public Flux<Recommendation> getRecommendations(int productId) {
+     
+      LOG.info("id_product: "+productId);
 
       if (productId < 1) {
         throw new InvalidInputException("Invalid productId: " + productId);
       }
 
-      List<RecommendationEntity> entityList=repository.findByProductId(productId);
-      List<Recommendation> list= mapper.entityListToApiList(entityList);
-      list.forEach(e->e.setServiceAddress(serviceUtil.getServiceAddress()));
+      return repository.findByProductId(productId)
+    		  .log(LOG.getName(), FINE)
+    		  .map(e-> mapper.entityToApi(e))
+    		  .map(e-> setServiceAddress(e));
       
-      LOG.debug("getRecommendations: response size(): {}", list.size());
-      
-      return list;
     }
 
 
 	@Override
-	public void deleteRecommendations(int productId) {
+	public Mono<Void> deleteRecommendations(int productId) {
+		if (productId < 1) {
+	      throw new InvalidInputException("Invalid productId: " + productId);
+	    }
 		LOG.debug("deleteRecommendations:  tries to delete "
 				+ "recommendations for the product with productId: {}", productId);
-		repository.deleteAll(repository.findByProductId(productId));
+		return repository.deleteAll(repository.findByProductId(productId));
 		
 	}
+	
+	private Recommendation setServiceAddress(Recommendation e) {
+	    e.setServiceAddress(serviceUtil.getServiceAddress());
+	    return e;
+	}
+	
+	
 }

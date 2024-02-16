@@ -1,11 +1,12 @@
 package com.hugo.ms.core.recomendation.persistence;
 
-import java.util.List;
 
-import org.springframework.data.repository.CrudRepository;
+import org.springframework.data.repository.reactive.ReactiveCrudRepository;
+
+import reactor.core.publisher.Flux;
 
 public interface RecommendationRepository 
-	extends CrudRepository<RecommendationEntity, String>{
+	extends ReactiveCrudRepository<RecommendationEntity, String>{
 
-	List<RecommendationEntity> findByProductId(int productId);
+	Flux<RecommendationEntity> findByProductId(int productId);
 }

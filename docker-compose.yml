@@ -53,10 +53,10 @@ services:
     ports:
      - "3306:3306"
     environment:
-     - MYSQL_ROOT_PASSWORD=rootpwd
+     - MYSQL_ROOT_PASSWORD=hola123
      - MYSQL_DATABASE=review-db
-     - MYSQL_USER=user
-     - MYSQL_PASSWORD=pwd
+     - MYSQL_USER=root
+     - MYSQL_PASSWORD=hola123
     healthcheck:
      test: "/usr/bin/mysql --user=user --password=pwd --execute \"SHOW DATABASES;\""
      interval: 5s
