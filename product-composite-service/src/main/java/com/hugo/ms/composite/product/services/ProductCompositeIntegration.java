@@ -1,5 +1,7 @@
 package com.hugo.ms.composite.product.services;
 import static java.util.logging.Level.FINE;
+import static com.hugo.api.event.Event.Type.CREATE;
+import static com.hugo.api.event.Event.Type.DELETE;
 import static reactor.core.publisher.Flux.empty;
 
 import java.io.IOException;
@@ -11,9 +13,13 @@ import static org.springframework.http.HttpMethod.GET;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cloud.stream.function.StreamBridge;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpStatus;
+import org.springframework.messaging.Message;
+import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
@@ -29,15 +35,18 @@ import com.hugo.api.core.recommendation.Recommendation;
 import com.hugo.api.core.recommendation.RecommendationService;
 import com.hugo.api.core.review.Review;
 import com.hugo.api.core.review.ReviewService;
+import com.hugo.api.event.Event;
 import com.hugo.util.HttpErrorInfo;
 
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Scheduler;
 
 @Component
 public class ProductCompositeIntegration implements ProductService, RecommendationService, ReviewService{
 	
 	private static final Logger LOG = LoggerFactory.getLogger(ProductCompositeIntegration.class);
+	
 	
 	private final WebClient webClient;
 	private final ObjectMapper mapper;
@@ -45,11 +54,17 @@ public class ProductCompositeIntegration implements ProductService, Recommendati
 	private final String recommendationServiceUrl;
 	private final String reviewServiceUrl;
 	
+	private final StreamBridge streamBridge;
+	private final Scheduler publishEventScheduler;
+	
 	
 	 @Autowired
 	  public ProductCompositeIntegration(
+		@Qualifier("publishEventScheduler") Scheduler publishEventScheduler,
 	    WebClient.Builder webClient,
 	    ObjectMapper mapper,
+	    StreamBridge streamBridge,
+	    
 	    @Value("${app.product-service.host}") String productServiceHost,
 	    @Value("${app.product-service.port}") int productServicePort,
 	    @Value("${app.recommendation-service.host}") String recommendationServiceHost,
@@ -57,6 +72,8 @@ public class ProductCompositeIntegration implements ProductService, Recommendati
 	    @Value("${app.review-service.host}") String reviewServiceHost,
 	    @Value("${app.review-service.port}") int reviewServicePort) {
 		 
+		 this.publishEventScheduler=publishEventScheduler;
+		 this.streamBridge=streamBridge;
 		 this.webClient=webClient.build();
 		 this.mapper = mapper;
 
@@ -68,15 +85,12 @@ public class ProductCompositeIntegration implements ProductService, Recommendati
 	 
 	@Override
 	public Mono<Product> createProduct(Product body) {
-		try {
-			String url=productServiceUrl;
-			LOG.debug("will post a new product to URL: {}",url);
-			Product product=restTemplate.postForObject(url, body,Product.class);
-			LOG.debug("Created a product with id: {}",product.getProductId());
-			return product;
-		}catch(HttpClientErrorException ex) {
-			throw handleHttpClientException(ex);
-		}
+		
+		return Mono.fromCallable(()->{
+			sendMessage("products-out-0", new Event(CREATE, body.getProductId(),body ));
+			return body;
+		}).subscribeOn(publishEventScheduler);
+		
 	}
 		 
 
@@ -96,7 +110,10 @@ public class ProductCompositeIntegration implements ProductService, Recommendati
 	   }
 	
 	@Override
-	public void deleteProduct(int productId) {
+	public Mono<Void> deleteProduct(int productId) {
+		return Mono.fromRunnable(()-> sendMessage("products-out-0", new Event(DELETE, productId,null)))
+				.subscribeOn(publishEventScheduler).then();
+		
 		try {
 			String url= productServiceUrl+"/"+productId;
 			LOG.debug("Will call the deleteProduct API on URL: {}", url);
@@ -186,6 +203,16 @@ public class ProductCompositeIntegration implements ProductService, Recommendati
 		}catch(HttpClientErrorException ex) {
 			throw handleHttpClientException(ex);
 		}
+		
+	}
+	
+	
+	private void sendMessage(String bindinName, Event event) {
+		LOG.debug("Sending a {} message to {}", event.getEventType());
+		Message message= MessageBuilder.withPayload(event)
+				.setHeader("partitionKey", event.getKey())
+				.build();
+		streamBridge.send(bindinName, message);
 		
 	}
 	
