@@ -46,24 +46,20 @@ public class ProductCompositeServiceImpl implements ProductCompositeService {
 		try {
 			
 			List<Mono> monoList =new ArrayList<>();
+			
 			LOG.info("Will create a new composite entity for product.id: {}",body.getProductId());
 			
 			Product product= new Product(body.getProductId(), body.getName(), 
 					body.getWeight(),null);
 			monoList.add(integration.createProduct(product));
 			
-			LOG.debug("createCompositeProduct: creates a new composite "
-					+ "entity for productId: {}", body.getProductId());
-			Product product= new Product(body.getProductId(), body.getName(), 
-					body.getWeight(), null);
-			integration.createProduct(product);
 			
 			if(body.getRecommendations()!=null) {
 				body.getRecommendations().forEach(r->{
 					Recommendation recommendation= new Recommendation(
 							body.getProductId(),r.getRecommendationId(),
 							r.getAuthor(), r.getRate(), r.getContent(), null);
-					integration.createRecommendation(recommendation);
+					monoList.add(integration.createRecommendation(recommendation));
 				});
 			}
 			
@@ -72,12 +68,16 @@ public class ProductCompositeServiceImpl implements ProductCompositeService {
 					Review review= new Review(body.getProductId(), 
 							r.getReviewId(), r.getAuthor(), r.getSubject(),
 							r.getContent(), null);
-					integration.createReview(review);
+					monoList.add(integration.createReview(review));
 				});
 			}
 			
 			LOG.debug("createCompositeProduct: composite entities created "
 					+ "for productId: {}", body.getProductId());
+			
+			return Mono.zip(r->"",monoList.toArray(new Mono[0]))
+					.doOnError(ex-> LOG.warn("createCompositeProduct failed: {}",ex.toString()))
+					.then();
 			
 		} catch (RuntimeException re) {
 		      LOG.warn("createCompositeProduct failed", re);
@@ -99,7 +99,7 @@ public class ProductCompositeServiceImpl implements ProductCompositeService {
 						integration.getProduct(productId),
 						integration.getRecommendations(productId).collectList(),
 						integration.getReviews(productId).collectList())
-				.doOnError(ex-> LOG.warm("getCompositeProduct failed: {}",ex.toString()))
+				.doOnError(ex-> LOG.warn("getCompositeProduct failed: {}",ex.toString()))
 				.log(LOG.getName(), FINE);
 		
 	
@@ -110,7 +110,7 @@ public class ProductCompositeServiceImpl implements ProductCompositeService {
 		try {
 			LOG.info("Will delete a product aggregate for product.id: {}", productId);
 			
-			return Mono.zip(r -> {},
+			return Mono.zip(r -> "",
 					integration.deleteProduct(productId),
 					integration.deleteRecommendations(productId),
 					integration.deleteReviews(productId))

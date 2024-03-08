@@ -6,12 +6,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
 import com.hugo.api.core.exception.EventProcessingException;
 import com.hugo.api.core.review.Review;
 import com.hugo.api.core.review.ReviewService;
 import com.hugo.api.event.Event;
 
+@Configuration
 public class MessageProcessorConfig {
 	
 	private static final Logger LOG= LoggerFactory.getLogger(MessageProcessorConfig.class);
@@ -24,7 +26,7 @@ public class MessageProcessorConfig {
 	}
 	
 	@Bean
-	public Consumer<Event<Integer, Review>> messageProcesor(){
+	public Consumer<Event<Integer, Review>> messageProcessor(){
 		return event->{
 			LOG.info("Process message created at {}..."+event.getEventCreatedAt());
 			
